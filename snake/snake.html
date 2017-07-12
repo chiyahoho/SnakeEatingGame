@@ -1,0 +1,199 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>13307130207_pj</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<style>
+#Map{border-collapse: collapse;}
+#Map td{
+width: 15px;
+height: 15px;
+border: 1px solid grey;
+}
+.blue{background: #66ccff;}
+.red{background: #ff0000;}
+.white{background: #ffffff;}
+.black{background: #333333;}
+</style>
+<script>
+var allTds = new Array();
+var Speed = 500;
+var maplen = 40;
+var m;
+var n;
+var dir = new Array();
+var dirL = new Array();
+var SL = new Array();
+var X = new Array();
+var Y = new Array();
+var PROC = null;
+
+
+var net = require('net');
+var HOST = '127.0.0.1';
+var PORT = 8080;
+
+var client = new net.Socket();
+client.connect(PORT, HOST, function() {
+    console.log('CONNECTED TO: ' + HOST + ':' + PORT);
+});
+
+client.on('data', function(data) {
+    var dat = parseInt(data);
+    while (dat > 0){
+        var op = dat % 10;
+        dat = parseInt(dat / 10);
+        if (op == 2){
+            id = dat % 10;
+            dat = parseInt(dat / 10);
+        }
+        else if (op == 3){
+            var idp = dat % 10;
+            dat = parseInt(dat / 10);
+            dirL[idp] = dat % 10;
+            dir[idp] = dirL[idp];
+            dat = parseInt(dat / 10);
+            X[idp] = dat % 100;
+            dat = parseInt(dat / 100);
+            Y[idp] = dat % 100;
+            dat = parseInt(dat / 100);
+
+            var snake = new Array();
+            snake[0] = allTds[X[idp]][Y[idp]];
+            snake[0].className = "blue";
+            SL[idp] = snake;
+        }
+        else if (op == 4){
+            var idp = dat % 10;
+            dat = parseInt(dat / 10);
+            dirL[idp] = dat % 10;
+            dat = parseInt(dat / 10);
+        }
+        else if (op == 5){
+            m = dat % 100;
+            dat = parseInt(dat / 100);
+            n = dat % 100;
+            dat = parseInt(dat / 100);
+            allTds[m][n].className = "red";
+        }
+        else if (op == 6){
+            westart();
+        }
+    }
+});
+
+client.on('close', function() {
+    console.log('Connection closed');
+});
+
+window.onload=function(){
+    for(var i=0;i<maplen;i++){
+        var tr = document.createElement("tr");
+        var trs = new Array();
+        for(var j=0;j<maplen;j++){
+            var td = document.createElement("td");
+            trs[j] = td;
+            tr.appendChild(td);
+        }
+        document.getElementById("Map").appendChild(tr);
+        allTds[i] = trs;
+    }
+    
+    var x =parseInt( Math.floor(Math.random()*maplen) );
+    var y =parseInt( Math.floor(Math.random()*maplen) );
+    var ans;
+    if (y<10) ans = '0'+y.toString();
+    else ans = y.toString();
+    if (x<10) ans = ans + '0' + x.toString();
+    else ans = ans + x.toString();
+    ans = ans + '11';
+    client.write(ans);
+}
+
+function Putfood(){
+    m = parseInt( Math.floor(Math.random()*maplen) );
+    n = parseInt( Math.floor(Math.random()*maplen) );
+    if (allTds[m][n].className == "blue" || allTds[m][n].className == "red"){
+        Putfood();
+    }
+    else{
+        var ans;
+        if (n<10) ans = '0'+n.toString();
+        else ans = n.toString();
+        if (m<10) ans = ans + '0' + m.toString();
+        else ans = ans + m.toString();
+        ans = ans + '5';
+        client.write(ans);
+    }
+}
+
+function Gameover(){
+    if (PROC != null){
+        clearTimeout(PROC);
+    }
+    alert("Game Over! Refresh to restart.");
+}
+
+function westart(){
+
+    for(var i=0;i<dir.length;i++){
+        if (dir[i] + dirL[i] != 3 && dir[i] + dirL[i] != 7){
+            dir[i] = dirL[i];
+        }
+        if (dir[i] == 1) Y[i]++;
+        if (dir[i] == 2) Y[i]--;
+        if (dir[i] == 3) X[i]--;
+        if (dir[i] == 4) X[i]++;
+        var x = X[i];
+        var y = Y[i];
+        if (x<0 || y<0 || x>=maplen || y>=maplen){
+            Gameover();
+        }
+        if (allTds[x][y].className == "blue"){
+            Gameover();
+        }
+        if ((x == m) && (y == n)){
+            SL[i][SL[i].length] = allTds[m][n];
+            allTds[m][n].className = "blue";
+            if(id == 0)Putfood();
+        }
+        else{
+            SL[i][0].className = "white";
+            for(var j=0;j<SL[i].length-1;j++){
+                SL[i][j] = SL[i][j+1];
+            }
+            SL[i][SL[i].length-1] = allTds[x][y];
+            allTds[x][y].className = "blue";
+        }
+    }
+    PROC = setTimeout("westart()",Speed);
+}
+
+function Begin(){
+    Putfood();
+    client.write('6');
+}
+
+function keyDown(event){
+    if(event.keyCode == 39){//左
+        client.write('1'+id.toString()+'4');
+    }
+    if(event.keyCode == 37){//右
+        client.write('2'+id.toString()+'4');
+    }
+    if(event.keyCode == 38){//上
+        client.write('3'+id.toString()+'4');
+    }
+    if(event.keyCode == 40){//下
+        client.write('4'+id.toString()+'4');
+    }
+}
+</script>
+</head>
+<body onkeydown="keyDown(event)">
+<table cellpadding="0" cellspacing="0" id="Map" align="center"></table>
+<table cellpadding="0" cellspacing="0" width="300px;" align="center">
+<tr>
+<td><input type="button" value="START" onclick="Begin()"/></td>
+</tr>
+</table>
+</body>
